@@ -24,6 +24,8 @@ static json_obj_t * parseObj(buffer_t * file_buffer, const char * name);
 
 static void jsonDumpGraph(json_obj_t * root_node);
 
+static void formatStrForDot(char * dest, const char * src);
+
 json_obj_t * parseJSON(FILE * json_file)
 {
     assert(json_file);
@@ -72,13 +74,12 @@ static json_obj_t * parseObj(buffer_t * file_buffer, const char * name)
     sscanf(file_buffer->buf + file_buffer->pos, " { %n", &shift);
 
     if (shift > 0){
-        file_buffer->pos += shift; printf("shift: %d\n", shift);
+        file_buffer->pos += shift;
 
         new_obj->children = (json_obj_t **)calloc(MAX_CHILDREN_NUM, sizeof(json_obj_t *));
 
         while (sscanf(file_buffer->buf + file_buffer->pos, " \"%[^\"]\": %n", buffer, &shift) > 0){
             file_buffer->pos += shift;
-            printf("buffer: '%s', shift: %d, pos: %zu , count: %d\n", buffer, shift, file_buffer->pos, count);
             new_obj->children[count] = parseObj(file_buffer, buffer);
             count++;
         }
@@ -88,8 +89,6 @@ static json_obj_t * parseObj(buffer_t * file_buffer, const char * name)
     else {
         sscanf(file_buffer->buf + file_buffer->pos, " %[^,] , %n", new_obj->value, &shift);
         file_buffer->pos += shift;
-
-        printf("val: %s\n", new_obj->value);
     }
 
     return new_obj;
@@ -126,8 +125,6 @@ void jsonDump(json_obj_t * obj)
 void jsonObjDump(json_obj_t * obj)
 {
     assert(obj);
-
-    printf("entered '%s'\n", obj->name);
 
     logPrint(LOG_DEBUG, "\"%s\": ", obj->name);
 
@@ -186,9 +183,8 @@ static void jsonDumpGraph(json_obj_t * root_node)
     dump_count++;
 }
 
-const char * const NODE_COLOR = "#FFFFAA";
-// const char * const  LEFT_COLOR = "#AAFFAA";
-// const char * const RIGHT_COLOR = "#FFAAAA";
+const char * const ROOT_COLOR = "#FFFFAA";
+const char * const LEAF_COLOR = "#AAFFAA";
 
 void jsonMakeDot(FILE * dot_file, json_obj_t * node)
 {
@@ -210,18 +206,57 @@ static void nodeMakeDot(FILE * dot_file, json_obj_t * node, json_obj_t * parent)
 
     size_t node_num = (size_t )node;
 
-    if (node->children == NULL)
-        fprintf(dot_file, "node_%zu[shape=Mrecord,label=\"{\\\"%s\\\"|\\\"%s\\\"}\",fillcolor=\"%s\"];\n", node_num, node->name, node->value, NODE_COLOR);
+    if (node->children == NULL){
+        char value_str[MAX_ARG_LEN] = "";
+        formatStrForDot(value_str, node->value);
+
+        fprintf(dot_file, "node_%zu[shape=Mrecord,label=\"{\\\"%s\\\"|%s}\",fillcolor=\"%s\"];\n", node_num, node->name, value_str, LEAF_COLOR);
+    }
 
     else {
-        fprintf(dot_file, "node_%zu[shape=Mrecord,label=\"{'%s'}\",fillcolor=\"%s\"];\n", node_num, node->name, NODE_COLOR);
+        fprintf(dot_file, "node_%zu[shape=Mrecord,label=\"{\\\"%s\\\"}\",fillcolor=\"%s\"];\n", node_num, node->name, ROOT_COLOR);
 
         size_t child_index = 0;
         while (node->children[child_index] != NULL){
             nodeMakeDot(dot_file, node->children[child_index], node);
+            child_index++;
         }
     }
-
     if (parent != NULL)
-        fprintf(dot_file, "node_%zu->node_%zu;\n");
+        fprintf(dot_file, "node_%zu->node_%zu;\n", (size_t)parent, node_num);
 }
+
+static void formatStrForDot(char * dest, const char * src)
+{
+    assert(dest);
+    assert(src);
+
+    while (*src != '\0'){
+        switch (*src){
+            case '\"':
+                *dest = '\\';
+                dest++;
+                *dest = '\"';
+                break;
+
+            case '\\':
+                *dest = '\\';
+                dest++;
+                *dest = '\\';
+                break;
+
+            case '\n':
+                *dest = '\\';
+                dest++;
+                *dest = 'n';
+                break;
+
+            default:
+                *dest = *src;
+                break;
+        }
+        dest++;
+        src ++;
+    }
+}
+
