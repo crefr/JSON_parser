@@ -14,10 +14,14 @@ int main()
 {
     mkdir(LOG_FOLDER, S_IFDIR);
     logStart(LOG_FILE_NAME, LOG_DEBUG_PLUS, LOG_HTML);
+    logCancelBuffer();
 
     FILE * json_file = fopen("test.json", "r");
 
     json_obj_t * main_obj = parseJSON(json_file);
+
+    // jsonObjDump(main_obj);
+    jsonDump(main_obj);
 
     jsonObjDtor(main_obj);
 

@@ -14,4 +14,10 @@ json_obj_t * parseJSON(FILE * json_file);
 
 void jsonObjDtor(json_obj_t * obj);
 
+void jsonObjDump(json_obj_t * obj);
+
+void jsonMakeDot(FILE * dot_file, json_obj_t * node);
+
+void jsonDump(json_obj_t * obj);
+
 #endif
