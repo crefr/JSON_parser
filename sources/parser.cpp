@@ -9,18 +9,9 @@
 const size_t MAX_CHILDREN_NUM = 10;
 const size_t MAX_FILE_SIZE = 4096;
 
-typedef struct {
-    char * buf;
-    size_t pos;
-} buffer_t;
-
-static buffer_t makeBuffer(FILE * file, size_t size);
-
-static void cleanBuffer(buffer_t * buffer);
-
 static void nodeMakeDot(FILE * dot_file, json_obj_t * node, json_obj_t * parent);
 
-static json_obj_t * parseObj(buffer_t * file_buffer, const char * name);
+static json_obj_t * parseObj(FILE * json_file, const char * name);
 
 static void jsonDumpGraph(json_obj_t * root_node);
 
@@ -30,11 +21,7 @@ json_obj_t * parseJSON(FILE * json_file)
 {
     assert(json_file);
 
-    buffer_t buffer = makeBuffer(json_file, MAX_FILE_SIZE);
-
-    json_obj_t * main_obj = parseObj(&buffer, "main");
-
-    cleanBuffer(&buffer);
+    json_obj_t * main_obj = parseObj(json_file, "main");
 
     return main_obj;
 }
@@ -58,8 +45,9 @@ void jsonObjDtor(json_obj_t * obj)
     free(obj);
 }
 
-static json_obj_t * parseObj(buffer_t * file_buffer, const char * name)
+static json_obj_t * parseObj(FILE * json_file, const char * name)
 {
+    assert(json_file);
     assert(name);
 
     json_obj_t * new_obj = (json_obj_t *)calloc(1, sizeof(*new_obj));
@@ -71,47 +59,36 @@ static json_obj_t * parseObj(buffer_t * file_buffer, const char * name)
     size_t count = 0;
 
     int shift = 0;
-    sscanf(file_buffer->buf + file_buffer->pos, " { %n", &shift);
+    fscanf(json_file, " { %n", &shift);
 
     if (shift > 0){
-        file_buffer->pos += shift;
-
         new_obj->children = (json_obj_t **)calloc(MAX_CHILDREN_NUM, sizeof(json_obj_t *));
+        size_t child_index = 0;
 
-        while (sscanf(file_buffer->buf + file_buffer->pos, " \"%[^\"]\": %n", buffer, &shift) > 0){
-            file_buffer->pos += shift;
-            new_obj->children[count] = parseObj(file_buffer, buffer);
-            count++;
+        bool in_brackets = true;
+        while (in_brackets){
+            shift = 0;
+            fscanf(json_file, " } %n", &shift);
+
+            if (shift > 0){
+                in_brackets = false;
+                break;
+            }
+
+            fscanf(json_file, " \"%[^\"]\": %n", buffer, &shift);
+            new_obj->children[child_index] = parseObj(json_file, buffer);
+
+            child_index++;
         }
-        sscanf(file_buffer->buf + file_buffer->pos, " } %n", &shift);
-        file_buffer->pos += shift;
     }
     else {
-        sscanf(file_buffer->buf + file_buffer->pos, " %[^,] , %n", new_obj->value, &shift);
-        file_buffer->pos += shift;
+        fscanf(json_file, " %[^,}] %n", new_obj->value, &shift);
     }
 
+    shift = 0;
+    fscanf(json_file, " %*[,] %n", &shift);
+
     return new_obj;
-}
-
-static buffer_t makeBuffer(FILE * file, size_t size)
-{
-    assert(file);
-
-    buffer_t buffer = {};
-    buffer.buf = (char *)calloc(size, sizeof(*buffer.buf));
-
-    fread(buffer.buf, sizeof(*buffer.buf), size, file);
-
-    return buffer;
-}
-
-static void cleanBuffer(buffer_t * buffer)
-{
-    assert(buffer);
-
-    free(buffer->buf);
-    buffer->buf = NULL;
 }
 
 void jsonDump(json_obj_t * obj)
