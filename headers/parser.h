@@ -1,8 +1,10 @@
 #ifndef PARSER_H_INCLUDED
 #define PARSER_H_INCLUDED
 
-const size_t MAX_ARG_LEN = 64;
-const size_t MAX_CHILD_NUM = 16;
+const size_t MAX_ARG_LEN = 256;
+const size_t START_CHILD_NUM = 16;
+
+const size_t CAP_MULTIPLIER = 2;
 
 typedef struct json_obj {
     char name [MAX_ARG_LEN];

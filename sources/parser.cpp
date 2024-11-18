@@ -62,7 +62,9 @@ static json_obj_t * parseObj(FILE * json_file, const char * name)
     fscanf(json_file, " { %n", &shift);
 
     if (shift > 0){
-        new_obj->children = (json_obj_t **)calloc(MAX_CHILDREN_NUM, sizeof(json_obj_t *));
+        size_t child_capacity = START_CHILD_NUM;
+        new_obj->children = (json_obj_t **)calloc(START_CHILD_NUM, sizeof(json_obj_t *));
+
         size_t child_index = 0;
 
         bool in_brackets = true;
@@ -75,18 +77,24 @@ static json_obj_t * parseObj(FILE * json_file, const char * name)
                 break;
             }
 
-            fscanf(json_file, " \"%[^\"]\": %n", buffer, &shift);
+            fscanf(json_file, " \"%[^\"]\" : ", buffer);
             new_obj->children[child_index] = parseObj(json_file, buffer);
 
             child_index++;
+
+            if (child_index >= child_capacity - 1){
+                child_capacity *= CAP_MULTIPLIER;
+                new_obj->children = (json_obj_t **)realloc(new_obj->children, sizeof(*(new_obj->children)) * child_capacity);
+                memset(new_obj->children + child_index - 1, 0, child_capacity - child_index + 1);
+            }
         }
     }
     else {
-        fscanf(json_file, " %[^,}] %n", new_obj->value, &shift);
+        if (fscanf(json_file, " \"%[^\"]\" ", new_obj->value) <= 0)
+            fscanf(json_file, " %[^,}] ", new_obj->value);
     }
 
-    shift = 0;
-    fscanf(json_file, " %*[,] %n", &shift);
+    fscanf(json_file, " %*[,] ");
 
     return new_obj;
 }
