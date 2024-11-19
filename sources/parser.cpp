@@ -7,7 +7,6 @@
 #include "logger.h"
 
 const size_t MAX_CHILDREN_NUM = 10;
-const size_t MAX_FILE_SIZE = 4096;
 
 static void nodeMakeDot(FILE * dot_file, json_obj_t * node, json_obj_t * parent);
 
@@ -32,7 +31,6 @@ void jsonObjDtor(json_obj_t * obj)
 
     if (obj->children != NULL){
         size_t child_index = 0;
-
         while (obj->children[child_index] != NULL){
             jsonObjDtor(obj->children[child_index]);
             child_index++;
@@ -41,7 +39,6 @@ void jsonObjDtor(json_obj_t * obj)
         free(obj->children);
         obj->children = NULL;
     }
-
     free(obj);
 }
 
@@ -85,7 +82,7 @@ static json_obj_t * parseObj(FILE * json_file, const char * name)
             if (child_index >= child_capacity - 1){
                 child_capacity *= CAP_MULTIPLIER;
                 new_obj->children = (json_obj_t **)realloc(new_obj->children, sizeof(*(new_obj->children)) * child_capacity);
-                memset(new_obj->children + child_index - 1, 0, child_capacity - child_index + 1);
+                memset(new_obj->children + child_index, 0, (child_capacity - child_index) * sizeof(*(new_obj->children)));
             }
         }
     }
@@ -103,8 +100,12 @@ void jsonDump(json_obj_t * obj)
 {
     assert(obj);
 
+    logPrint(LOG_DEBUG, "--------JSON_PARSER_DUMP--------\n");
+
     jsonObjDump(obj);
     jsonDumpGraph(obj);
+
+    logPrint(LOG_DEBUG, "------JSON_PARSER_DUMP_END------\n");
 }
 
 void jsonObjDump(json_obj_t * obj)
