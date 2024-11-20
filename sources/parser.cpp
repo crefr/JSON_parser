@@ -96,6 +96,23 @@ static json_obj_t * parseObj(FILE * json_file, const char * name)
     return new_obj;
 }
 
+json_obj_t * findObject(json_obj_t * root, const char * sample)
+{
+    if (strcmp(sample, root->name) == 0)
+        return root;
+
+    if (root->children != NULL){
+        size_t child_index = 0;
+        while (root->children[child_index] != NULL){
+            json_obj_t * searched = findObject(root->children[child_index], sample);
+            if (searched != NULL)
+                return searched;
+            child_index++;
+        }
+    }
+    return NULL;
+}
+
 void jsonDump(json_obj_t * obj)
 {
     assert(obj);

@@ -1,4 +1,6 @@
 FILENAME = parser.exe
+LIBNAME  = Obj/parser.a
+
 OBJDIR 		   = Obj/
 SRCDIR 		   = sources/
 HEADDIR 	   = headers/
@@ -43,12 +45,21 @@ ALLDEPS = $(HEADDIR)parser.h $(HEADDIR)logger.h
 OBJECTS = main.o parser.o logger.o
 OBJECTS_WITH_DIR = $(addprefix $(OBJDIR),$(OBJECTS))
 
+LIB_OBJECTS = parser.o logger.o
+LIB_OBJECTS_WITH_DIR = $(addprefix $(OBJDIR),$(LIB_OBJECTS))
+
 $(FILENAME): $(OBJECTS_WITH_DIR) $(BINTREE_OBJ_WITH_DIR)
 	$(CC) $(CFLAGS) $^ -o $@
+
+$(LIBNAME):  $(LIB_OBJECTS_WITH_DIR)
+	ar rcs $@ $^
 
 $(OBJECTS_WITH_DIR): $(OBJDIR)%.o: $(SRCDIR)%.cpp $(ALLDEPS)
 	mkdir -p $(OBJDIR)
 	$(CC) $(CFLAGS) -c $< -o $@
+
+static_lib: $(LIBNAME)
+	echo "static lib exists now"
 
 clean:
 	rm $(OBJDIR)*
