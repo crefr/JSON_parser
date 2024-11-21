@@ -10,7 +10,7 @@ const size_t MAX_CHILDREN_NUM = 10;
 
 static void nodeMakeDot(FILE * dot_file, json_obj_t * node, json_obj_t * parent);
 
-static json_obj_t * parseObj(FILE * json_file, const char * name);
+static void parseObj(FILE * json_file, json_obj_t * obj, const char * name);
 
 static void jsonDumpGraph(json_obj_t * root_node);
 
@@ -22,7 +22,8 @@ json_obj_t * parseJSON(FILE * json_file)
 {
     assert(json_file);
 
-    json_obj_t * main_obj = parseObj(json_file, "main");
+    json_obj_t * main_obj = (json_obj_t *)calloc(1, sizeof(*main_obj));
+    parseObj(json_file, main_obj, "main");
 
     return main_obj;
 }
@@ -32,24 +33,20 @@ void jsonObjDtor(json_obj_t * obj)
     assert(obj);
 
     if (obj->children != NULL){
-        size_t child_index = 0;
-        while (obj->children[child_index] != NULL){
-            jsonObjDtor(obj->children[child_index]);
-            child_index++;
+        for (size_t child_index = 0; child_index < obj->size; child_index++){
+            jsonObjDtor(obj->children + child_index);
         }
 
         free(obj->children);
         obj->children = NULL;
     }
-    free(obj);
+    //free(obj);
 }
 
-static json_obj_t * parseObj(FILE * json_file, const char * name)
+static void parseObj(FILE * json_file, json_obj_t * new_obj, const char * name)
 {
     assert(json_file);
     assert(name);
-
-    json_obj_t * new_obj = (json_obj_t *)calloc(1, sizeof(*new_obj));
 
     new_obj->children = NULL;
     strcpy(new_obj->name, name);
@@ -61,10 +58,9 @@ static json_obj_t * parseObj(FILE * json_file, const char * name)
     fscanf(json_file, " { %n", &shift);
 
     if (shift > 0){
-        size_t child_capacity = START_CHILD_NUM;
-        new_obj->children = (json_obj_t **)calloc(START_CHILD_NUM, sizeof(json_obj_t *));
-
-        size_t child_index = 0;
+        new_obj->capacity = START_CHILD_NUM;
+        new_obj->size = 0;
+        new_obj->children = (json_obj_t *)calloc(new_obj->capacity, sizeof(json_obj_t));
 
         bool in_brackets = true;
         while (in_brackets){
@@ -77,14 +73,13 @@ static json_obj_t * parseObj(FILE * json_file, const char * name)
             }
 
             fscanf(json_file, " \"%[^\"]\" : ", buffer);
-            new_obj->children[child_index] = parseObj(json_file, buffer);
+            parseObj(json_file, new_obj->children + new_obj->size, buffer);
 
-            child_index++;
+            new_obj->size++;
 
-            if (child_index >= child_capacity - 1){
-                child_capacity *= CAP_MULTIPLIER;
-                new_obj->children = (json_obj_t **)realloc(new_obj->children, sizeof(*(new_obj->children)) * child_capacity);
-                memset(new_obj->children + child_index, 0, (child_capacity - child_index) * sizeof(*(new_obj->children)));
+            if (new_obj->size >= new_obj->capacity){
+                new_obj->capacity *= CAP_MULTIPLIER;
+                new_obj->children = (json_obj_t *)realloc(new_obj->children, sizeof(*(new_obj->children)) * new_obj->capacity);
             }
         }
     }
@@ -96,8 +91,6 @@ static json_obj_t * parseObj(FILE * json_file, const char * name)
     formatStr(new_obj->value);
 
     fscanf(json_file, " %*[,] ");
-
-    return new_obj;
 }
 
 json_obj_t * findObject(json_obj_t * root, const char * sample)
@@ -106,12 +99,10 @@ json_obj_t * findObject(json_obj_t * root, const char * sample)
         return root;
 
     if (root->children != NULL){
-        size_t child_index = 0;
-        while (root->children[child_index] != NULL){
-            json_obj_t * searched = findObject(root->children[child_index], sample);
+        for (size_t child_index = 0; child_index < root->size; child_index++){
+            json_obj_t * searched = findObject(root->children + child_index, sample);
             if (searched != NULL)
                 return searched;
-            child_index++;
         }
     }
     return NULL;
@@ -138,10 +129,8 @@ void jsonObjDump(json_obj_t * obj)
     if (obj->children != NULL){
         logPrint(LOG_DEBUG, "{\n");
 
-        size_t child_index = 0;
-        while (obj->children[child_index] != NULL){
-            jsonObjDump(obj->children[child_index]);
-            child_index++;
+        for (size_t child_index = 0; child_index < obj->size; child_index++){
+            jsonObjDump(obj->children + child_index);
         }
 
         logPrint(LOG_DEBUG, "}\n");
@@ -223,10 +212,8 @@ static void nodeMakeDot(FILE * dot_file, json_obj_t * node, json_obj_t * parent)
     else {
         fprintf(dot_file, "node_%zu[shape=Mrecord,label=\"{\\\"%s\\\"}\",fillcolor=\"%s\"];\n", node_num, node->name, ROOT_COLOR);
 
-        size_t child_index = 0;
-        while (node->children[child_index] != NULL){
-            nodeMakeDot(dot_file, node->children[child_index], node);
-            child_index++;
+        for (size_t child_index = 0; child_index < node->size; child_index++){
+            nodeMakeDot(dot_file, node->children + child_index, node);
         }
     }
     if (parent != NULL)
