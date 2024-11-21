@@ -10,6 +10,7 @@ typedef struct json_obj {
     char name [MAX_ARG_LEN];
     char value[MAX_ARG_LEN];
     json_obj ** children;
+    // TODO size, capacity
 } json_obj_t;
 
 json_obj_t * parseJSON(FILE * json_file);

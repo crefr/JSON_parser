@@ -16,6 +16,8 @@ static void jsonDumpGraph(json_obj_t * root_node);
 
 static void formatStrForDot(char * dest, const char * src);
 
+static char * formatStr(char * str);
+
 json_obj_t * parseJSON(FILE * json_file)
 {
     assert(json_file);
@@ -90,6 +92,8 @@ static json_obj_t * parseObj(FILE * json_file, const char * name)
         if (fscanf(json_file, " \"%[^\"]\" ", new_obj->value) <= 0)
             fscanf(json_file, " %[^,}] ", new_obj->value);
     }
+
+    formatStr(new_obj->value);
 
     fscanf(json_file, " %*[,] ");
 
@@ -263,3 +267,32 @@ static void formatStrForDot(char * dest, const char * src)
     }
 }
 
+static char * formatStr(char * str)
+{
+    char * str_write = str;
+    char * str_read  = str;
+
+    while (*str_read != '\0'){
+        if (*str_read == '\\'){
+            str_read++;
+            switch (*str_read){
+                case 'n':
+                    *str_write = '\n';
+                    break;
+                case '\"':
+                    *str_write = '\"';
+                    break;
+                default:
+                    *str_write = '\\';
+                    break;
+            }
+        }
+        else {
+            *str_write = *str_read;
+        }
+        str_read++;
+        str_write++;
+    }
+    *str_write = '\0';
+    return str;
+}
